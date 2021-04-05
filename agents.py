@@ -67,36 +67,45 @@ class Traverser():
         # section each part of the vineyard so that the agents
         # only operate on disjoint subsets of the graph.
         # For our Aisle Graph we separate by full rows
+        full_sol = Solution(self.graph)
+        full_sol.nodes = set(self.graph.get_node_list())
+        total_reward = full_sol.sum()
         self.graph.set_compare_mode(Graph.CUMULATIVE)
         agents = []
         j = 1
-        for i in range(num_agents):
-            # track where we started from
+        for _ in range(num_agents):
+            # track which row we left off from
             i = j
             # calculate section of graph using percentage of reward
             #  vs percentage of budget each agent will have.
-            s = 0
+            s = Solution(self.graph)
             b_agent = int(self.budget / num_agents)
             p_agent = b_agent / self.budget
-            while (j-i + 1)/self.graph.rows() <= p_agent:
-                # agent takes next row
-                j += 1
+            while  j < self.graph.rows():
+                # add the next row to the sum
+                s.nodes.add(self.graph.aisle[j][-1])
+                s.path_schedule()
+                if s.sum()/total_reward <= p_agent:
+                    # agent moves to next row
+                    j += 1
+                else: 
+                    break
+
             # get copy of graph
             temp_graph = self.graph.copy()
             # set nodes not in the span of rows i,j to 0
-            for row in range(1, i):
-                for col in range(1, temp_graph.cols()+1):
-                    temp_graph.aisle[row-1][col-1].c_val = 0
-            for row in range(j, temp_graph.rows()+1):
-                for col in range(1, temp_graph.cols()+1):
-                    temp_graph.aisle[row-1][col-1].c_val = 0
+            for row in range(1, temp_graph.rows()+1):
+                for col in range(0, temp_graph.cols()):
+                    if row < i or row > j:
+                        temp_graph.aisle[row-1][col].c_val = 0
+            j+=1
             new_agent = Traverser(temp_graph, b_agent)
             agents.append(new_agent)
-        
         sols = []
 
         for agent in agents:
             sol = agent.Gdy()
+            sol.graph.set_compare_mode(Graph.CUMULATIVE)
             sols.append(sol)
         return sols
 
@@ -108,7 +117,7 @@ class Traverser():
         temp_graph = self.graph.copy()
         conflicts = []
         sols = []
-        for i in range(num_agents):
+        for _ in range(num_agents):
             b_agent = int(self.budget / num_agents)
             new_agent = Traverser(temp_graph, b_agent)
             agents.append(new_agent)
@@ -281,7 +290,7 @@ class Traverser():
         # iterate through the heap, stop if the cost of the trip exceeds the budget or if 
         #   no greater reward can be reached
         blacklists = [set() for _ in range(num_agents)]
-        while (not heap.empty()) and (sol.cost() < b_agent for sol in agents) and (heap.peekMax().val > 0):
+        while (not heap.empty()) and (sol.cost() < b_agent for sol in agents) and (not sol.done for sol in agents)and (heap.peekMax().val > 0):
             # if the current best node has already been visited, discard it
             for blacklist in blacklists:
                 if heap.peekMax() in blacklist:                    
@@ -295,6 +304,10 @@ class Traverser():
                 conflicts = [s for s in agents]
                 conflicts = conflicts[:i] + conflicts[i+1:]
                 agent_heap = heap.copy()
+                if agents[i].done:
+                    continue
+                elif agents[i].sum() >= b_agent:
+                    agents[i].done = True
                 while not agent_heap.empty() and agent_heap.peekMax().get_val() > 0:
                     # find best node for this agent without time conflicts
                     new_node = agent_heap.extractMax()
@@ -311,6 +324,8 @@ class Traverser():
                 if (choice is None):
                     if (done is False):
                         agents[i].waits.append(agents[i].get_last_node())
+                    else:
+                       agents[i].done = True 
                 else:
                     candidates.add(choice)
             for node in candidates:
@@ -318,6 +333,8 @@ class Traverser():
                 best_agent = -1
                 min_cost = MAX_COST
                 for i in range(len(agents)):
+                    if agents[i].done:
+                        continue
                     s_new = agents[i].copy()
                     s_new.nodes.add(node)
                     conflicts = [sol for sol in agents]

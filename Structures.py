@@ -28,7 +28,6 @@ class MaxHeap:
         self.Heap[i], self.Heap[j] = (self.Heap[j], self.Heap[i])
 
     def maxHeapify(self, i):
-        
         if not self.isLeaf(i):
             if ((self.Heap[i]< self.Heap[self.leftChild(i)]) 
                 or (self.Heap[i]< self.Heap[self.rightChild(i)])):

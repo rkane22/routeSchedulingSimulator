@@ -12,6 +12,7 @@ class Solution():
         self.nodes = set() # the set of nodes in the solution
         self.waits = [] # an integer representing the time step to wait on
         self.last_node = None
+        self.done = False # for parallel algorithm
 
     def path_schedule(self):
         # similar to cost, find the unique path to
@@ -104,3 +105,11 @@ class Solution():
 
     def total_reward(self):
         return compute_sum(set(self.graph.get_node_list()))
+
+def combine(sols, graph):
+    new_sol = Solution(graph)
+    for sol in sols:
+        for node in sol.nodes:
+            new_sol.nodes.add(node)
+    new_sol.path_schedule()
+    return new_sol

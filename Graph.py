@@ -3,6 +3,7 @@ import copy
 
 DEFAULT = 0
 CUMULATIVE = 1
+MAX_REWARD = 100
 
 def gen_random_aisle_graph(aisles=1, rows=5, cols=5, theta=2):
     # use Zipf distribution 
@@ -11,7 +12,12 @@ def gen_random_aisle_graph(aisles=1, rows=5, cols=5, theta=2):
     for row in range(rows):
         r = []
         for col in range(cols):
-            reward = 0 if col == 0 else numpy.random.zipf(theta)
+            if col == 0:
+                reward = 0
+            else:
+                reward = numpy.random.zipf(theta)
+                while reward > MAX_REWARD:
+                    reward = numpy.random.zipf(theta)
             r.append(Vertex(reward, row+1, col+1))
         aisle.append(r)
     new_graph.aisle = aisle
@@ -32,7 +38,7 @@ class AisleGraph():
         return len(self.aisle)
 
     def cols(self):
-        return len(self.aisle[0])-1
+        return len(self.aisle[0])
 
     def reset(self):
         self.set_compare_mode(DEFAULT)
